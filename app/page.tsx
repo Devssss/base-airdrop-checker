@@ -19,9 +19,21 @@ import {
   Wallet,
   Zap,
   Globe,
-  Fuel
+  Fuel,
+  TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  AreaChart,
+  Area
+} from 'recharts';
 
 // Types
 interface Transaction {
@@ -145,6 +157,14 @@ export default function Home() {
 
   const status = getStatusText(score);
 
+  const gasChartData = transactions
+    .map(tx => ({
+      time: new Date(parseInt(tx.timeStamp) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      price: parseFloat(formatEther(BigInt(tx.gasPrice))) * 1e9, // Gwei
+      fullTime: new Date(parseInt(tx.timeStamp) * 1000).toLocaleString()
+    }))
+    .reverse();
+
   const getTxType = (tx: Transaction) => {
     if (tx.to === '') return 'Contract Deployment';
     if (tx.functionName && tx.functionName.includes('transfer')) return 'Token Transfer';
@@ -260,6 +280,75 @@ export default function Home() {
 
         {/* Right Side: Transaction Feed */}
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
+          {/* Gas Price Chart */}
+          <div className="glass-card p-6 h-[280px] flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-orange-500/10 p-2 rounded-lg">
+                  <TrendingUp className="w-5 h-5 text-orange-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white tracking-tight">Gas Price Trend (Gwei)</h3>
+                  <p className="text-[10px] text-slate-500 font-medium">Historical fee market for recent interactions</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex-grow min-h-0">
+              {gasChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={gasChartData}>
+                    <defs>
+                      <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={selectedNetwork.color} stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor={selectedNetwork.color} stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis 
+                      dataKey="time" 
+                      stroke="#475569" 
+                      fontSize={10} 
+                      tickLine={false} 
+                      axisLine={false} 
+                      minTickGap={30}
+                    />
+                    <YAxis 
+                      stroke="#475569" 
+                      fontSize={10} 
+                      tickLine={false} 
+                      axisLine={false}
+                      tickFormatter={(value) => `${value.toFixed(1)}`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        background: '#0f172a', 
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }}
+                      itemStyle={{ color: '#fff' }}
+                      labelStyle={{ color: '#64748b', fontSize: '10px', marginBottom: '4px' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="price" 
+                      stroke={selectedNetwork.color} 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill="url(#colorPrice)" 
+                      name="Gas Price (Gwei)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-600 text-xs italic">
+                  Not enough data to display trend
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="glass-card flex flex-col min-h-[500px]">
             <div className="p-6 border-b border-white/5 flex justify-between items-center">
               <div className="flex items-center gap-3">
