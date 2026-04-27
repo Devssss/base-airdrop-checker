@@ -166,11 +166,35 @@ export default function Home() {
     .reverse();
 
   const getTxType = (tx: Transaction) => {
-    if (tx.to === '') return 'Contract Deployment';
-    if (tx.functionName && tx.functionName.includes('transfer')) return 'Token Transfer';
-    if (tx.functionName && tx.functionName !== '') return tx.functionName.split('(')[0];
-    if (tx.value !== '0') return 'ETH Transfer';
-    return 'Contract Interaction';
+    if (tx.to === '' || tx.contractAddress !== '') return { name: 'Contract Deployment', color: 'text-purple-400', icon: <Zap className="w-3 h-3" /> };
+    
+    const func = tx.functionName?.toLowerCase() || '';
+    
+    if (func.includes('safetransferfrom') || (func.includes('transferfrom') && tx.value === '0')) {
+       return { name: 'NFT Action', color: 'text-indigo-400', icon: <History className="w-3 h-3" /> };
+    }
+    
+    if (func.includes('swap') || func.includes('exactinput') || func.includes('exactoutput') || func.includes('multicall')) {
+      return { name: 'DEX Swap', color: 'text-pink-400', icon: <RefreshCcw className="w-3 h-3" /> };
+    }
+    
+    if (func.includes('mint')) {
+      return { name: 'Minting', color: 'text-yellow-400', icon: <Zap className="w-3 h-3" /> };
+    }
+    
+    if (func.includes('approve') || func.includes('setapprovalforall')) {
+      return { name: 'Security / Appr', color: 'text-amber-500', icon: <ShieldCheck className="w-3 h-3" /> };
+    }
+    
+    if (func.includes('transfer')) {
+      return { name: 'Token Transfer', color: 'text-blue-400', icon: <ArrowRight className="w-3 h-3" /> };
+    }
+
+    if (tx.value !== '0' && (func === '' || func.includes('deposit') || func.includes('withdraw'))) {
+      return { name: 'ETH Transfer', color: 'text-emerald-400', icon: <Wallet className="w-3 h-3" /> };
+    }
+
+    return { name: tx.functionName ? tx.functionName.split('(')[0] : 'Interaction', color: 'text-slate-400', icon: <Activity className="w-3 h-3" /> };
   };
 
   return (
@@ -201,7 +225,7 @@ export default function Home() {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              BaseScore <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded leading-none">v1.2.0</span>
+              BaseScore <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded leading-none">v1.2.1</span>
             </h1>
             <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">On-chain Presence Analyzer</p>
           </div>
@@ -371,49 +395,53 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((tx) => (
-                    <tr key={tx.hash} className="interaction-row hover:bg-slate-800/20 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] font-bold text-blue-400 uppercase mb-1">
-                            {getTxType(tx)}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono text-slate-500">{tx.hash.slice(0, 10)}...</span>
-                            <a href={`${selectedNetwork.explorerUrl}/tx/${tx.hash}`} target="_blank" rel="noreferrer">
-                              <ExternalLink className="w-3 h-3 text-slate-700 hover:text-slate-400" />
-                            </a>
+                  {transactions.map((tx) => {
+                    const typeInfo = getTxType(tx);
+                    return (
+                      <tr key={tx.hash} className="interaction-row hover:bg-slate-800/20 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <div className={`flex items-center gap-1.5 text-[10px] font-bold ${typeInfo.color} uppercase mb-1`}>
+                              {typeInfo.icon}
+                              {typeInfo.name}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-mono text-slate-500">{tx.hash.slice(0, 10)}...</span>
+                              <a href={`${selectedNetwork.explorerUrl}/tx/${tx.hash}`} target="_blank" rel="noreferrer">
+                                <ExternalLink className="w-3 h-3 text-slate-700 hover:text-slate-400" />
+                              </a>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className={`text-[10px] font-bold ${tx.isError === '0' ? 'text-emerald-500' : 'text-red-500'}`}>
-                            {tx.isError === '0' ? 'SUCCESS' : 'FAILED'}
-                          </span>
-                          <span className="text-[10px] text-slate-600 mt-1">
-                            {new Date(parseInt(tx.timeStamp) * 1000).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-1.5">
-                            <Fuel className="w-3 h-3 text-slate-500" />
-                            <span className="text-xs font-mono text-slate-300">{parseInt(tx.gasUsed).toLocaleString()} units</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className={`text-[10px] font-bold ${tx.isError === '0' ? 'text-emerald-500' : 'text-red-500'}`}>
+                              {tx.isError === '0' ? 'SUCCESS' : 'FAILED'}
+                            </span>
+                            <span className="text-[10px] text-slate-600 mt-1">
+                              {new Date(parseInt(tx.timeStamp) * 1000).toLocaleDateString()}
+                            </span>
                           </div>
-                          <span className="text-[10px] text-slate-600 mt-1">
-                            {parseFloat(formatEther(BigInt(tx.gasPrice))).toFixed(9)} ETH/gas
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                              <Fuel className="w-3 h-3 text-slate-500" />
+                              <span className="text-xs font-mono text-slate-300">{parseInt(tx.gasUsed).toLocaleString()} units</span>
+                            </div>
+                            <span className="text-[10px] text-slate-600 mt-1">
+                              {parseFloat(formatEther(BigInt(tx.gasPrice))).toFixed(9)} ETH/gas
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-xs font-bold text-white">
+                            {formatEther(BigInt(tx.value)).slice(0, 8)} ETH
                           </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-xs font-bold text-white">
-                          {formatEther(BigInt(tx.value)).slice(0, 8)} ETH
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {transactions.length === 0 && !loading && (
                     <tr>
                       <td colSpan={4} className="px-6 py-20 text-center text-slate-500 text-sm">
