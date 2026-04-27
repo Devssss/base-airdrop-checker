@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "BaseScore",
+  "description": "On-chain activity checker for Base, Arbitrum, and Optimism",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }
